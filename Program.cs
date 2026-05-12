@@ -127,13 +127,15 @@ class Program
     static List<Tag> parseTagsCsv(string csvPath, char delimiter = ';', bool hasHeaders = true)
     {
         var lines = File.ReadLines(csvPath).Skip(hasHeaders ? 1 : 0);
-        List<Tag> tags = lines.Select(line => {
-            var parts = line.Split(delimiter);
-            return new Tag {
-                ID = parts[0].Trim(),
-                Naam = parts[1].Trim()
-            };
-        }).ToList();
+        List<Tag> tags = lines
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line => {
+                var parts = line.Split(delimiter);
+                return new Tag {
+                    ID = parts[0].Trim(),
+                    Naam = parts[1].Trim()
+                };
+            }).ToList();
         return tags;
     }
 
