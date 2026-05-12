@@ -137,10 +137,20 @@ class Program
         return tags;
     }
 
-    static void SyncTags(DatabaseService dbService, string csvPath, char csvDelimiter = ';', bool csvHasHeaders = true)
+    static void SyncTags(DatabaseService dbService, string csvPath, char csvDelimiter = ';', bool csvHasHeaders = true, bool csvStripQuotes = true)
     {
         // Load tags from CSV
         var csvTags = parseTagsCsv(csvPath, csvDelimiter, csvHasHeaders);
+
+        // Strip quotes if needed
+        if (csvStripQuotes)
+        {
+            foreach (var tag in csvTags)
+            {
+                tag.ID = tag.ID.Trim('"');
+                tag.Naam = tag.Naam.Trim('"');
+            }
+        }
 
         // Get existing tags from database
         var dbTags = dbService.GetAllTags();
@@ -185,12 +195,13 @@ class Program
         string fileFilter = "tags.csv";
         char csvDelimiter = ';';
         bool csvHasHeaders = true;
+        bool csvStripQuotes = true;
 
         // Register Serilog
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Information()
             .WriteTo.Console()
-            .WriteTo.File("log.txt", rollingInterval: RollingInterval.Year)
+            .WriteTo.File("log.txt", rollingInterval: RollingInterval.Infinite)
             .CreateLogger();
 
         // Load configuration from config.ini
@@ -207,6 +218,7 @@ class Program
             fileFilter = config["Input:Filter"] ?? "tags.csv";
             csvDelimiter = config["Input:CsvDelimiter"] != null ? config["Input:CsvDelimiter"]?[0] ?? ';' : ';';
             csvHasHeaders = config["Input:CsvHasHeaders"] != null ? bool.Parse(config["Input:CsvHasHeaders"] ?? "true") : true;
+            csvStripQuotes = config["Input:CsvStripQuotes"] != null ? bool.Parse(config["Input:CsvStripQuotes"] ?? "true") : true;
         }
         catch (FileNotFoundException ex)
         {
@@ -238,8 +250,8 @@ class Program
         watcher.Filter = fileFilter;
         watcher.NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName;
 
-        watcher.Changed += (s, e) => SyncTags(dbService, e.FullPath, csvDelimiter, csvHasHeaders);
-        watcher.Created += (s, e) => SyncTags(dbService, e.FullPath, csvDelimiter, csvHasHeaders);
+        watcher.Changed += (s, e) => SyncTags(dbService, e.FullPath, csvDelimiter, csvHasHeaders, csvStripQuotes);
+        watcher.Created += (s, e) => SyncTags(dbService, e.FullPath, csvDelimiter, csvHasHeaders, csvStripQuotes);
         watcher.EnableRaisingEvents = true;
 
         // Keep the application running
